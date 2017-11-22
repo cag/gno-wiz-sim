@@ -11,23 +11,38 @@ canvas {
 <main>
 
 <h1>Input</h1>
+<label>Number of days:</label><input id="num-days" type="range" min="30" max="365" onchange="updateNumDays(parseInt(this.value))">
 <div class="charts">
-    <canvas id="total-wiz"></canvas>
-    <canvas id="gno-locked"></canvas>
-    <canvas id="wiz-consumed"></canvas>
+    <div>
+        <canvas id="gno-locked"></canvas>
+    </div>
+    <div>
+        <canvas id="wiz-consumed"></canvas>
+    </div>
 </div class="charts">
 
 <h1>Output</h1>
 <div class="charts">
     <canvas id="wiz-consumed-30"></canvas>
     <canvas id="wiz-per-day-per-gno"></canvas>
+    <canvas id="total-wiz"></canvas>
 </div class="charts">
 
 </main>
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.bundle.js" integrity="sha256-1qeNeAAFNi/g6PFChfXQfa6CQ8eXoHXreohinZsoJOQ=" crossorigin="anonymous"></script>
 <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.bundle.min.js" integrity="sha256-RASNMNlmRtIreeznffYMDUxBXcMRjijEaaGF/gxT6vw=" crossorigin="anonymous"></script> -->
 <script>
 'use strict';
+
+var numDays = parseInt(document.getElementById("num-days").value),
+    gnoLocked = [],
+    wizConsumed = [],
+    wizConsumed30 = [],
+    wizPerDayPerGNO = [],
+    totalWiz = [];
 
 function createChart(opts) {
     var chartCanvas = opts.chartCanvas,
@@ -35,8 +50,8 @@ function createChart(opts) {
         title = opts.title || '',
         range = opts.range != null ? opts.range : 1,
         chartDataFunction = opts.chartDataFunction || function(data) {
-            for(var i = 0; i < NUM_DAYS; i++) {
-                data[i] = { x: i, y: i * range / NUM_DAYS };
+            for(var i = 0; i < numDays; i++) {
+                data[i] = { x: i, y: i * range / numDays };
             }
         },
         type = opts.type || 'input';
@@ -67,6 +82,39 @@ function createChart(opts) {
     });
 
     if(type === 'input') {
+        var buttonConstant = document.createElement('button'),
+            buttonLinearIncreasing = document.createElement('button'),
+            buttonLinearDecreasing = document.createElement('button');
+
+        buttonConstant.innerText = 'Constant';
+        buttonLinearIncreasing.innerText = 'Linear+';
+        buttonLinearDecreasing.innerText = 'Linear-';
+
+        buttonConstant.addEventListener("click", function() {
+            for(var i = 0; i < numDays; i++) {
+                chartData[i] = { x: i, y: range / 2 };
+            }
+            chart.update(0);
+        });
+
+        buttonLinearIncreasing.addEventListener("click", function() {
+            for(var i = 0; i < numDays; i++) {
+                chartData[i] = { x: i, y: i * range / numDays };
+            }
+            chart.update(0);
+        });
+
+        buttonLinearDecreasing.addEventListener("click", function() {
+            for(var i = 0; i < numDays; i++) {
+                chartData[i] = { x: i, y: range - i * range / numDays };
+            }
+            chart.update(0);
+        });
+
+        chartCanvas.insertAdjacentElement('afterend', buttonConstant);
+        buttonConstant.insertAdjacentElement('afterend', buttonLinearIncreasing);
+        buttonLinearIncreasing.insertAdjacentElement('afterend', buttonLinearDecreasing);
+
         function getCoordinatesFromMouseEvent(e) {
             var xScale = chart.scales['x-axis-0'],
                 yScale = chart.scales['y-axis-0'],
@@ -78,7 +126,7 @@ function createChart(opts) {
         }
 
         function updateChartWithCoordinates(xCoord, yCoord) {
-            if(xCoord >= 0 && xCoord < NUM_DAYS) {
+            if(xCoord >= 0 && xCoord < numDays) {
                 chartData[xCoord] = { x: xCoord, y: yCoord };
                 chart.update(0);
             }
@@ -102,36 +150,18 @@ function createChart(opts) {
                 lastChartPos = chartPos;
             }
         });
-    } else {
-        setInterval(function() {
-            chartDataFunction(chartData);
-            chart.update(0);
-        }, 1000);
     }
+    return chart;
 }
 
-var NUM_DAYS = 90,
-    totalWiz = [],
-    gnoLocked = [],
-    wizConsumed = [],
-    wizConsumed30 = [],
-    wizPerDayPerGNO = [];
-
-createChart({
-    chartCanvas: document.getElementById("total-wiz"),
-    chartData: totalWiz,
-    title: 'Total WIZ',
-    range: 1000
-});
-
-createChart({
+var gnoLockedChart = createChart({
     chartCanvas: document.getElementById("gno-locked"),
     chartData: gnoLocked,
     title: 'Total GNO Locked',
     range: 1000
 });
 
-createChart({
+var wizConsumedChart = createChart({
     chartCanvas: document.getElementById("wiz-consumed"),
     chartData: wizConsumed,
     title: 'Total WIZ Consumed',
@@ -140,37 +170,76 @@ createChart({
 
 // -----------------------------------------------------------------------------
 
-createChart({
+var wizConsumed30Chart = createChart({
     type: 'output',
     chartCanvas: document.getElementById("wiz-consumed-30"),
     chartData: wizConsumed30,
-    title: 'Total WIZ Consumed 30 Days Cumulative',
-    chartDataFunction: function(data) {
-        var wizCons = 0;
-        for(var i = 0; i < NUM_DAYS; i++) {
-            wizCons += wizConsumed[i].y;
-            if(i - 30 >= 0) {
-                wizCons -= wizConsumed[i - 30].y;
-            }
-            data[i] = {x: i, y: wizCons};
-        }
-    }
+    title: 'Total WIZ Consumed 30 Days Cumulative'
 });
 
-createChart({
+var wizPerDayPerGNOChart = createChart({
     type: 'output',
     chartCanvas: document.getElementById("wiz-per-day-per-gno"),
     chartData: wizPerDayPerGNO,
-    title: 'WIZ Per Day Per GNO',
-    chartDataFunction: function(data) {
-        for(var i = 0; i < NUM_DAYS; i++) {
-            data[i] = {
-                x: i,
-                y: ((wizConsumed30[i].y / 30) +
-                    Math.max(0, ((wizConsumed30[i].y * 20) - totalWiz[i].y) / 90))
-                    / (gnoLocked[i].y)
-            };
+    title: 'WIZ Per Day Per GNO'
+});
+
+var totalWizChart = createChart({
+    type: 'output',
+    chartCanvas: document.getElementById("total-wiz"),
+    chartData: totalWiz,
+    title: 'Total WIZ'
+});
+
+function updateNumDays(newNumDays) {
+    if(newNumDays < numDays) {
+        gnoLocked.length = newNumDays;
+        wizConsumed.length = newNumDays;
+        wizConsumed30.length = newNumDays;
+        wizPerDayPerGNO.length = newNumDays;
+        totalWiz.length = newNumDays;
+    } else {
+        for (var i = numDays; i < newNumDays; i++) {
+            gnoLocked[i] = {x: i, y: gnoLocked[numDays-1].y};
+            wizConsumed[i] = {x: i, y: wizConsumed[numDays-1].y};
         }
     }
-});
+    numDays = newNumDays;
+    gnoLockedChart.update(0);
+    wizConsumedChart.update(0);
+    wizConsumed30Chart.update(0);
+    wizPerDayPerGNOChart.update(0);
+    totalWizChart.update(0);
+}
+setInterval(function() {
+    var wizCons = 0;
+    for(var i = 0; i < numDays; i++) {
+        wizCons += wizConsumed[i].y;
+        if(i - 30 >= 0) {
+            wizCons -= wizConsumed[i - 30].y;
+        }
+        wizConsumed30[i] = {x: i, y: wizCons};
+    }
+
+    totalWiz[0] = {x: 0, y: 10000};
+
+    for(var i = 0; i < numDays; i++) {
+        if(i > 0) {
+            totalWiz[i] = {
+                x: i,
+                y: totalWiz[i-1].y - wizConsumed[i-1].y +
+                    gnoLocked[i-1].y * wizPerDayPerGNO[i-1].y
+            };
+        }
+        wizPerDayPerGNO[i] = {
+            x: i,
+            y: ((wizConsumed30[i].y / 30) +
+                Math.max(0, ((wizConsumed30[i].y * 20) - totalWiz[i].y) / 90))
+                / (gnoLocked[i].y == 0 ? 0.00000001 : gnoLocked[i].y)
+        };
+    }
+    wizConsumed30Chart.update(0);
+    wizPerDayPerGNOChart.update(0);
+    totalWizChart.update(0);
+}, 1000);
 </script>
